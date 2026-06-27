@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-<meta name="theme-color" content="#04070e" id="themeColorMeta" />
+<meta name="theme-color" content="#0c0d10" id="themeColorMeta" />
 <meta name="description" content="Scan a car part and find which vehicles need it. Idea & developed by Idriss Romdhani." />
 <title>Idriss Auto — Scan parts & mechanics hub</title>
 <link rel="manifest" href="manifest.webmanifest" />
@@ -26,7 +26,6 @@
     <img class="logo" src="icons/icon-192.png" alt="Idriss Auto" onerror="this.style.display='none'" />
     <div>
       <h1 id="appName">Idriss Auto</h1>
-      <small id="tagline">Scan · Identify · Fix</small>
     </div>
   </div>
   <div class="spacer"></div>
@@ -75,6 +74,34 @@
     <div id="catList" class="list"></div>
   </section>
 
+  <!-- CARS -->
+  <section class="view" id="view-cars">
+    <h2 data-i="cars_title"></h2>
+    <p class="sub" data-i="cars_sub"></p>
+    <div class="field"><input id="carSearch" type="search" data-ph="cars_search_ph" /></div>
+    <div id="carsList" class="list"></div>
+  </section>
+
+  <!-- ASK IDRISS -->
+  <section class="view" id="view-ask">
+    <div class="chat-head">
+      <div class="chat-id">
+        <span class="av">IR</span>
+        <div class="chat-name" data-i="ask_title"></div>
+      </div>
+      <div class="chat-actions">
+        <button class="chip" id="chatHistoryBtn" data-i="ask_history"></button>
+        <button class="chip on" id="chatNewBtn" data-i="ask_new"></button>
+      </div>
+    </div>
+    <div id="chatHistory" class="chat-history hidden"></div>
+    <div id="chatMessages" class="chat-msgs"></div>
+    <div class="chat-input">
+      <textarea id="chatInput" rows="1" data-ph="ask_ph"></textarea>
+      <button id="chatSend" class="chat-send" aria-label="send">→</button>
+    </div>
+  </section>
+
   <!-- LEARN -->
   <section class="view" id="view-learn">
     <div id="learnHub">
@@ -93,23 +120,6 @@
       <h2 id="learnDetailTitle"></h2>
       <div id="learnDetailBody"></div>
     </div>
-  </section>
-
-  <!-- GARAGE -->
-  <section class="view" id="view-garage">
-    <h2 data-i="garage_title"></h2>
-    <p class="sub" data-i="garage_sub"></p>
-    <div class="card">
-      <div class="field"><input id="gMake" list="makeList" autocomplete="off" data-ph="garage_make" /></div>
-      <div class="row">
-        <input id="gModel" list="modelList" autocomplete="off" data-ph="garage_model" />
-        <input id="gYear" type="number" inputmode="numeric" data-ph="garage_year" />
-      </div>
-      <button class="btn" id="gSave" style="margin-top:12px" data-i="garage_save"></button>
-      <datalist id="makeList"></datalist>
-      <datalist id="modelList"></datalist>
-    </div>
-    <div id="garageList" class="list"></div>
   </section>
 
   <!-- ABOUT -->
@@ -159,8 +169,9 @@
 <nav class="tabbar" id="tabbar">
   <button data-tab="scan" class="active"><span data-i="nav_scan"></span></button>
   <button data-tab="catalog"><span data-i="nav_catalog"></span></button>
+  <button data-tab="cars"><span data-i="nav_cars"></span></button>
+  <button data-tab="ask"><span data-i="nav_ask"></span></button>
   <button data-tab="learn"><span data-i="nav_learn"></span></button>
-  <button data-tab="garage"><span data-i="nav_garage"></span></button>
   <button data-tab="about"><span data-i="nav_about"></span></button>
 </nav>
 

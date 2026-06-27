@@ -25,7 +25,7 @@
   function applyTheme() {
     const eff = resolvedTheme();
     document.documentElement.setAttribute('data-theme', eff);
-    $('#themeColorMeta').setAttribute('content', eff === 'light' ? '#eaf3fb' : '#04070e');
+    $('#themeColorMeta').setAttribute('content', eff === 'light' ? '#f5f1ea' : '#0c0d10');
     $('#themeToggle').textContent = eff === 'light' ? '◑' : '◐';
     const pref = LS.get('ms_theme', 'system');
     $$('#themeSeg [data-theme-opt]').forEach(b => b.classList.toggle('active', b.dataset.themeOpt === pref));
@@ -46,11 +46,11 @@
     document.documentElement.lang = lang;
     document.documentElement.dir = t.dir;
     $('#appName').textContent = t.appName;
-    $('#tagline').textContent = t.tagline;
+    { const tg = $('#tagline'); if (tg) tg.textContent = t.tagline; }
     $$('[data-i]').forEach(el => { const k = el.getAttribute('data-i'); if (t[k] != null) el.textContent = t[k]; });
     $$('[data-ph]').forEach(el => { const k = el.getAttribute('data-ph'); if (t[k] != null) el.setAttribute('placeholder', t[k]); });
     $('#langSelect').value = lang;
-    renderCatalog(); renderGarage(); closeLearnDetail();
+    renderCatalog(); closeLearnDetail();
   }
 
   /* ===================== nav ===================== */
@@ -62,6 +62,8 @@
     const vid = $('#heroVideo');
     if (vid) { if (name === 'scan') { const p = vid.play(); if (p && p.catch) p.catch(() => {}); } else { try { vid.pause(); } catch {} } }
     if (name !== 'learn') closeLearnDetail();
+    if (name === 'cars' && typeof runCarSearch === 'function') runCarSearch();
+    if (name === 'ask' && typeof renderMessages === 'function') renderMessages();
     try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch {}
   }
   $$('#tabbar button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -98,8 +100,7 @@
   function partCard(p, opts = {}) {
     const t = T();
     const fits = (p.fits || []).map(vehicleRow).join('');
-    const saveBtn = opts.save
-      ? `<button class="tag btnlike cat" style="align-self:flex-start;margin-top:4px" data-save="${esc(p.id)}">+ ${esc(t.scan_save_garage)}</button>` : '';
+    const saveBtn = '';
     return `<div class="card part">
       <div class="phead">
         ${partThumb(p)}
@@ -116,11 +117,7 @@
       ${saveBtn}
     </div>`;
   }
-  function bindSave(container) {
-    $$('[data-save]', container).forEach(btn => btn.addEventListener('click', () => {
-      addSavedPart(btn.dataset.save); toast(T().saved);
-    }));
-  }
+  function bindSave() { /* garage removed — no-op */ }
 
   function searchParts(q) {
     q = (q || '').trim().toLowerCase();
@@ -302,6 +299,160 @@
   }
   $('#catSearch').addEventListener('input', renderCatalog);
 
+  /* ===================== CARS FINDER ===================== */
+  let CARS = null;
+  async function loadCars() {
+    if (CARS) return CARS;
+    try { const r = await fetch('data/vehicles-full.json'); if (r.ok) CARS = await r.json(); } catch {}
+    return CARS;
+  }
+  function titleCase(s) { return String(s || '').replace(/\b\w/g, c => c.toUpperCase()); }
+  function carResultCard(c) {
+    const t = T();
+    const name = `${c.make} ${c.model}`;
+    const img = carImage(c.make, c.model);
+    const photo = img
+      ? `<img class="car-photo" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`
+      : '';
+    const spec = (label, val) => (val == null || val === '' || val === 0)
+      ? '' : `<div class="spec"><span class="sk">${esc(label)}</span><span class="sv">${esc(val)}</span></div>`;
+    const disp = c.displacement ? c.displacement + ' L' : '';
+    return `<div class="card part">
+      ${photo}
+      <div class="top"><span class="name">${esc(name)}</span>
+        ${c.class ? `<span class="tag cat">${esc(c.class)}</span>` : ''}</div>
+      <div class="specgrid">
+        ${spec(t.spec_years, c.years)}
+        ${spec(t.spec_fuel, titleCase(c.fuel))}
+        ${spec(t.spec_cyl, c.cylinders)}
+        ${spec(t.spec_disp, disp)}
+        ${spec(t.spec_drive, c.drive)}
+      </div>
+    </div>`;
+  }
+  async function runCarSearch() {
+    const t = T(), box = $('#carsList');
+    const q = $('#carSearch').value.trim().toLowerCase();
+    if (q.length < 2) { box.innerHTML = `<div class="muted-row">${esc(t.cars_hint)}</div>`; return; }
+    const list = await loadCars();
+    if (!list) { box.innerHTML = `<div class="muted-row">—</div>`; return; }
+    const hits = list.filter(c => (c.make + ' ' + c.model).toLowerCase().includes(q)).slice(0, 60);
+    if (!hits.length) { box.innerHTML = `<div class="muted-row">${esc(t.cars_none)}</div>`; return; }
+    box.innerHTML = `<div class="kv" style="margin:0 2px 8px">${hits.length} ${esc(t.cars_count)}</div>` +
+      hits.map(carResultCard).join('');
+  }
+  let carTimer;
+  const carInput = $('#carSearch');
+  if (carInput) {
+    carInput.addEventListener('focus', loadCars, { once: true });
+    carInput.addEventListener('input', () => { clearTimeout(carTimer); carTimer = setTimeout(runCarSearch, 180); });
+    carInput.addEventListener('keydown', e => { if (e.key === 'Enter') runCarSearch(); });
+  }
+
+  /* ===================== ASK IDRISS (chat) ===================== */
+  const CHAT_URL = (typeof window !== 'undefined' && window.IDRISS_CHAT_PROXY) || './api/chat';
+  const getChats = () => LS.get('ms_chats', []);
+  const saveChats = (c) => LS.set('ms_chats', c);
+  let activeChatId = LS.get('ms_chat_active', null);
+  let chatBusy = false;
+
+  function activeChat() {
+    const chats = getChats();
+    let c = chats.find(x => x.id === activeChatId);
+    if (!c) {
+      c = { id: 'c' + Date.now(), title: '', msgs: [], updated: Date.now() };
+      chats.unshift(c); saveChats(chats); activeChatId = c.id; LS.set('ms_chat_active', c.id);
+    }
+    return c;
+  }
+  function persistChat(c) {
+    c.updated = Date.now();
+    const rest = getChats().filter(x => x.id !== c.id);
+    rest.unshift(c); saveChats(rest);
+  }
+  function newChat() {
+    const chats = getChats();
+    let empty = chats.find(x => !x.msgs.length);
+    if (!empty) { empty = { id: 'c' + Date.now(), title: '', msgs: [], updated: Date.now() }; chats.unshift(empty); saveChats(chats); }
+    activeChatId = empty.id; LS.set('ms_chat_active', empty.id);
+    $('#chatHistory').classList.add('hidden');
+    renderMessages(); const i = $('#chatInput'); if (i) i.focus();
+  }
+  function bubble(m) {
+    const av = m.role === 'assistant' ? '<span class="bav">IR</span>' : '';
+    return `<div class="bubble ${m.role}">${av}<div class="btext">${esc(m.content)}</div></div>`;
+  }
+  function renderMessages() {
+    const t = T(), box = $('#chatMessages'); if (!box) return;
+    const c = activeChat();
+    if (!c.msgs.length && !chatBusy) {
+      box.innerHTML = `<div class="chat-empty">
+        <div class="av big">IR</div>
+        <div class="ce-title">${esc(t.ask_title)}</div>
+        <div class="ce-sub">${esc(t.ask_sub)}</div>
+        <div class="ce-ex">
+          <button class="ex" data-ex="${esc(t.ask_ex1)}">${esc(t.ask_ex1)}</button>
+          <button class="ex" data-ex="${esc(t.ask_ex2)}">${esc(t.ask_ex2)}</button>
+          <button class="ex" data-ex="${esc(t.ask_ex3)}">${esc(t.ask_ex3)}</button>
+        </div></div>`;
+      $$('[data-ex]', box).forEach(b => b.addEventListener('click', () => { $('#chatInput').value = b.dataset.ex; sendMessage(); }));
+      return;
+    }
+    box.innerHTML = c.msgs.map(bubble).join('') +
+      (chatBusy ? `<div class="bubble assistant"><span class="bav">IR</span><div class="btext typing"><i></i><i></i><i></i></div></div>` : '');
+    box.scrollTop = box.scrollHeight;
+  }
+  function renderHistory() {
+    const t = T(), box = $('#chatHistory');
+    const chats = getChats().filter(x => x.msgs.length);
+    box.innerHTML = (chats.length ? chats.map(c => `<div class="hrow ${c.id === activeChatId ? 'on' : ''}" data-open="${esc(c.id)}">
+        <span class="ht">${esc(c.title || (c.msgs[0] && c.msgs[0].content.slice(0, 40)) || '—')}</span>
+        <button class="hx" data-del="${esc(c.id)}">✕</button></div>`).join('') : `<div class="muted-row">—</div>`) +
+      (chats.length ? `<button class="btn ghost" id="chatClearAll" style="margin-top:8px">${esc(t.ask_clear)}</button>` : '');
+    $$('[data-open]', box).forEach(b => b.addEventListener('click', (e) => {
+      if (e.target.closest('[data-del]')) return;
+      activeChatId = b.dataset.open; LS.set('ms_chat_active', activeChatId);
+      box.classList.add('hidden'); renderMessages();
+    }));
+    $$('[data-del]', box).forEach(b => b.addEventListener('click', () => {
+      saveChats(getChats().filter(x => x.id !== b.dataset.del));
+      if (b.dataset.del === activeChatId) activeChatId = null;
+      renderHistory(); renderMessages();
+    }));
+    const clr = $('#chatClearAll');
+    if (clr) clr.addEventListener('click', () => { saveChats([]); activeChatId = null; renderHistory(); renderMessages(); });
+  }
+  async function sendMessage() {
+    if (chatBusy) return;
+    const input = $('#chatInput'); const text = (input.value || '').trim(); if (!text) return;
+    const c = activeChat();
+    c.msgs.push({ role: 'user', content: text });
+    if (!c.title) c.title = text.slice(0, 40);
+    persistChat(c);
+    input.value = ''; autoGrow(); chatBusy = true; renderMessages();
+    try {
+      const res = await fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: c.msgs.slice(-20) }) });
+      const txt = await res.text(); let data; try { data = JSON.parse(txt); } catch { data = null; }
+      if (!res.ok || !data || data.error || !data.reply) throw new Error((data && (data.error || data.detail)) || ('HTTP ' + res.status));
+      c.msgs.push({ role: 'assistant', content: data.reply });
+    } catch (err) {
+      c.msgs.push({ role: 'assistant', content: T().ask_error + '\n\n(' + (err.message || err) + ')' });
+    } finally {
+      persistChat(c); chatBusy = false; renderMessages();
+    }
+  }
+  function autoGrow() { const i = $('#chatInput'); if (!i) return; i.style.height = 'auto'; i.style.height = Math.min(i.scrollHeight, 140) + 'px'; }
+  (function initChat() {
+    const send = $('#chatSend'), input = $('#chatInput'), nb = $('#chatNewBtn'), hb = $('#chatHistoryBtn');
+    if (send) send.addEventListener('click', sendMessage);
+    if (input) {
+      input.addEventListener('input', autoGrow);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+    }
+    if (nb) nb.addEventListener('click', newChat);
+    if (hb) hb.addEventListener('click', () => { const h = $('#chatHistory'); if (h.classList.contains('hidden')) renderHistory(); h.classList.toggle('hidden'); });
+  })();
+
   /* ===================== LEARN HUB ===================== */
   $$('[data-learn]').forEach(b => b.addEventListener('click', () => openLearn(b.dataset.learn)));
   $('#learnBack').addEventListener('click', closeLearnDetail);
@@ -348,26 +499,7 @@
     try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch {}
   }
 
-  /* ===================== GARAGE ===================== */
-  const getVehicles = () => LS.get('ms_vehicles', []);
-  const setVehicles = (v) => LS.set('ms_vehicles', v);
-  const getSavedParts = () => LS.get('ms_savedParts', []);
-  function addSavedPart(id) { const s = getSavedParts(); if (!s.includes(id)) { s.push(id); LS.set('ms_savedParts', s); renderGarage(); } }
-  function removeSavedPart(id) { LS.set('ms_savedParts', getSavedParts().filter(x => x !== id)); renderGarage(); }
-
-  $('#gSave').addEventListener('click', () => {
-    const make = $('#gMake').value.trim(), model = $('#gModel').value.trim(), year = $('#gYear').value.trim();
-    if (!make || !model) { $('#gMake').focus(); return; }
-    const v = getVehicles(); v.push({ id: 'v' + Date.now(), make, model, year }); setVehicles(v);
-    $('#gMake').value = $('#gModel').value = $('#gYear').value = '';
-    toast(T().saved); renderGarage();
-  });
-
-  function partsForVehicle(v) {
-    const mk = v.make.toLowerCase(), md = v.model.toLowerCase();
-    return window.PARTS.filter(p => (p.fits || []).some(f =>
-      f.make.toLowerCase() === mk && (f.model.toLowerCase().includes(md) || md.includes(f.model.toLowerCase()))));
-  }
+  /* ===================== CAR IMAGES ===================== */
   // Real car photos (from the bundled Cars Dataset) — matched by model, then make.
   const CAR_BY_MODEL = { innova:'toyota-innova', creta:'hyundai-creta', scorpio:'mahindra-scorpio', safari:'tata-safari', swift:'swift', mustang:'ford-mustang' };
   const CAR_BY_MAKE = {
@@ -384,36 +516,6 @@
     for (const k in CAR_BY_MAKE) if (mk.includes(k)) return 'images/cars/' + CAR_BY_MAKE[k] + '.jpg';
     return '';
   }
-  function renderGarage() {
-    const t = T(), box = $('#garageList'), vehicles = getVehicles();
-    let html = '';
-    html += vehicles.length ? vehicles.map(v => {
-      const matches = partsForVehicle(v);
-      const mlist = matches.length
-        ? matches.map(p => `<div class="veh"><span>${esc(partName(p))}</span><span class="yr">${esc(p.partNo)}</span></div>`).join('')
-        : `<div class="kv">—</div>`;
-      const photo = carImage(v.make, v.model);
-      const photoHtml = photo ? `<img class="car-photo" src="${esc(photo)}" alt="" loading="lazy" onerror="this.remove()">` : '';
-      return `<div class="card part">${photoHtml}<div class="top">
-        <span class="name">${esc(v.make)} ${esc(v.model)} ${esc(v.year || '')}</span>
-        <button class="tag btnlike" data-del="${esc(v.id)}">✕ ${esc(t.garage_remove)}</button></div>
-        <div class="kv">${esc(t.garage_matching)}:</div><div class="fits">${mlist}</div></div>`;
-    }).join('') : `<div class="muted-row">${esc(t.garage_empty)}</div>`;
-
-    const saved = getSavedParts().map(id => window.PARTS.find(p => p.id === id)).filter(Boolean);
-    if (saved.length) {
-      html += `<div class="kv" style="margin:12px 2px 4px"><b>${esc(t.garage_saved_parts)}</b></div>`;
-      html += saved.map(p => `<div class="card part"><div class="top">
-        <span class="name">${esc(partName(p))}</span>
-        <button class="tag btnlike" data-unsave="${esc(p.id)}">✕</button></div>
-        <div class="kv">${esc(t.cat_partno)}: <b>${esc(p.partNo)}</b></div>
-        <div class="fits">${(p.fits || []).map(vehicleRow).join('')}</div></div>`).join('');
-    }
-    box.innerHTML = html;
-    $$('[data-del]', box).forEach(b => b.addEventListener('click', () => { setVehicles(getVehicles().filter(x => x.id !== b.dataset.del)); renderGarage(); }));
-    $$('[data-unsave]', box).forEach(b => b.addEventListener('click', () => removeSavedPart(b.dataset.unsave)));
-  }
-
   /* ===================== SETTINGS ===================== */
   function openSettings() { applyTheme(); $('#settingsModal').classList.add('open'); }
   const closeSettings = () => $('#settingsModal').classList.remove('open');

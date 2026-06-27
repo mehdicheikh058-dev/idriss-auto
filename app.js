@@ -81,8 +81,10 @@
   const catName = (c) => tr(catMeta(c));
 
   const vehicleRow = (v) => {
-    const img = carImage(v.make, v.model);
-    const thumb = img ? `<img class="veh-thumb" src="${esc(img)}" alt="" loading="lazy" onerror="this.classList.add('ph')">` : '<span class="veh-thumb ph"></span>';
+    const local = carImage(v.make, v.model);
+    const thumb = local
+      ? `<img class="veh-thumb" src="${esc(local)}" alt="" loading="lazy" onerror="this.classList.add('ph')">`
+      : `<img class="veh-thumb ph carpix" data-mk="${esc(v.make)}" data-md="${esc(v.model)}" alt="" loading="lazy">`;
     return `<div class="veh">${thumb}<span class="vname">${esc(v.make)} ${esc(v.model)}</span><span class="yr">${esc(v.years || v.year || '')}</span></div>`;
   };
 
@@ -117,7 +119,7 @@
       ${saveBtn}
     </div>`;
   }
-  function bindSave() { /* garage removed — no-op */ }
+  function bindSave(container) { hydrateCarPix(container); }
 
   function searchParts(q) {
     q = (q || '').trim().toLowerCase();
@@ -310,10 +312,10 @@
   function carResultCard(c) {
     const t = T();
     const name = `${c.make} ${c.model}`;
-    const img = carImage(c.make, c.model);
-    const photo = img
-      ? `<img class="car-photo" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">`
-      : '';
+    const local = carImage(c.make, c.model);
+    const photo = local
+      ? `<img class="car-photo" src="${esc(local)}" alt="" loading="lazy" onerror="this.remove()">`
+      : `<img class="car-photo carpix" data-mk="${esc(c.make)}" data-md="${esc(c.model)}" alt="" loading="lazy">`;
     const spec = (label, val) => (val == null || val === '' || val === 0)
       ? '' : `<div class="spec"><span class="sk">${esc(label)}</span><span class="sv">${esc(val)}</span></div>`;
     const disp = c.displacement ? c.displacement + ' L' : '';
@@ -340,6 +342,7 @@
     if (!hits.length) { box.innerHTML = `<div class="muted-row">${esc(t.cars_none)}</div>`; return; }
     box.innerHTML = `<div class="kv" style="margin:0 2px 8px">${hits.length} ${esc(t.cars_count)}</div>` +
       hits.map(carResultCard).join('');
+    hydrateCarPix(box);
   }
   let carTimer;
   const carInput = $('#carSearch');
@@ -611,26 +614,102 @@
   }
 
   /* ===================== CAR IMAGES ===================== */
-  // Real car photos (from the bundled Cars Dataset) — matched by model, then make.
-  const CAR_BY_MODEL = { innova:'toyota-innova', creta:'hyundai-creta', scorpio:'mahindra-scorpio', safari:'tata-safari', swift:'swift', mustang:'ford-mustang' };
-  const CAR_BY_MAKE = {
-    audi:'audi', bentley:'bentley', mercedes:'benz', 'mercedes-benz':'benz', benz:'benz',
-    bmw:'bmw', cadillac:'cadillac', dodge:'dodge', ferrari:'ferrari', ford:'ford',
-    kia:'kia', lamborghini:'lamborghini', lexus:'lexus', maserati:'maserati', porsche:'porsche',
-    'rolls royce':'rolls-royce', 'rolls-royce':'rolls-royce', rollsroyce:'rolls-royce',
-    tesla:'tesla', toyota:'toyota', 'alfa romeo':'alfa-romeo', 'alfa-romeo':'alfa-romeo', alfa:'alfa-romeo',
-    hyundai:'hyundai', mahindra:'mahindra-scorpio', tata:'tata-safari', suzuki:'swift', maruti:'swift'
-  };
+  // Convention: images/cars/<brand>.jpg  and  images/cars/<brand>__<model>.jpg
+  // manifest.json lists which files exist, so we never request a missing image.
+  function carSlug(s) {
+    return (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+  const CAR_IMG_SET = new Set([
+    'audi','bentley','mercedes-benz','bmw','cadillac','dodge','ferrari','ford','hyundai','kia',
+    'lamborghini','lexus','maserati','porsche','rolls-royce','tesla','toyota','alfa-romeo',
+    'ford__mustang','hyundai__creta','mahindra__scorpio','suzuki__swift','tata__safari','toyota__innova'
+  ]);
+  const CAR_MAKE_ALIAS = { mercedes: 'mercedes-benz', benz: 'mercedes-benz', vw: 'volkswagen', chevy: 'chevrolet', maruti: 'suzuki', rollsroyce: 'rolls-royce' };
   function carImage(make, model) {
-    const md = (model || '').toLowerCase(), mk = (make || '').toLowerCase();
-    for (const k in CAR_BY_MODEL) if (md.includes(k)) return 'images/cars/' + CAR_BY_MODEL[k] + '.jpg';
-    for (const k in CAR_BY_MAKE) if (mk.includes(k)) return 'images/cars/' + CAR_BY_MAKE[k] + '.jpg';
+    const mk = carSlug(make), md = carSlug(model);
+    if (mk && md && CAR_IMG_SET.has(mk + '__' + md)) return 'images/cars/' + mk + '__' + md + '.jpg';
+    const amk = CAR_MAKE_ALIAS[mk] || mk;
+    if (amk && md && CAR_IMG_SET.has(amk + '__' + md)) return 'images/cars/' + amk + '__' + md + '.jpg';
+    if (mk && CAR_IMG_SET.has(mk)) return 'images/cars/' + mk + '.jpg';
+    if (amk && CAR_IMG_SET.has(amk)) return 'images/cars/' + amk + '.jpg';
     return '';
   }
+  // Optional imagin.studio (needs a business account). Set the key in Settings.
+  function imaginCustomer() { return (typeof window !== 'undefined' && window.IDRISS_IMAGIN) || LS.get('ms_imagin', '') || ''; }
+  function imaginUrl(make, model) {
+    const cust = imaginCustomer(); if (!cust) return '';
+    const mk = carSlug(make); if (!mk) return '';
+    const md = carSlug(model);
+    let u = 'https://cdn.imagin.studio/getImage?customer=' + encodeURIComponent(cust) +
+      '&make=' + encodeURIComponent(mk) + '&angle=01&width=640&fileType=png';
+    if (md) u += '&modelFamily=' + encodeURIComponent(md);
+    return u;
+  }
+  // Free fallback: fetch a model photo from Wikipedia (no key), cached on device.
+  async function wikiImage(make, model) {
+    const first = (model || '').split(/[ /(]/)[0] || '';
+    const titles = [(make + ' ' + model).trim(), (make + ' ' + first).trim(), make];
+    for (const t of titles) {
+      if (!t) continue;
+      try {
+        const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t) + '?redirect=true');
+        if (!r.ok) continue;
+        const j = await r.json();
+        const u = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+        if (u && !/\.svg$/i.test(u)) return u;
+      } catch {}
+    }
+    return '';
+  }
+  function applyPix(img, url) {
+    if (!img) return;
+    if (url) { img.classList.remove('ph'); img.onerror = function () { if (img.classList.contains('veh-thumb')) { img.classList.add('ph'); img.removeAttribute('src'); } else { img.remove(); } }; img.src = url; return; }
+    if (img.classList.contains('veh-thumb')) img.classList.add('ph'); else img.remove();
+  }
+  async function resolveCarPix(img) {
+    const mk = img.dataset.mk || '', md = img.dataset.md || '';
+    const cust = imaginCustomer();
+    if (cust) { applyPix(img, imaginUrl(mk, md)); return; }
+    const key = (mk + '|' + md).toLowerCase();
+    const cache = LS.get('ms_carpix', {});
+    if (Object.prototype.hasOwnProperty.call(cache, key)) { applyPix(img, cache[key]); return; }
+    const url = await wikiImage(mk, md);
+    cache[key] = url; try { LS.set('ms_carpix', cache); } catch {}
+    applyPix(img, url);
+  }
+  let carObs = null;
+  function hydrateCarPix(root) {
+    const imgs = $$('.carpix', root || document).filter(im => !im.dataset.done);
+    if (!('IntersectionObserver' in window)) { imgs.forEach(im => { im.dataset.done = '1'; resolveCarPix(im); }); return; }
+    if (!carObs) carObs = new IntersectionObserver(ents => {
+      ents.forEach(e => { if (e.isIntersecting) { const im = e.target; carObs.unobserve(im); if (!im.dataset.done) { im.dataset.done = '1'; resolveCarPix(im); } } });
+    }, { rootMargin: '250px' });
+    imgs.forEach(im => carObs.observe(im));
+  }
+  async function loadCarManifest() {
+    try {
+      const r = await fetch('images/cars/manifest.json'); if (!r.ok) return;
+      const a = await r.json();
+      if (Array.isArray(a)) { a.forEach(s => CAR_IMG_SET.add(String(s).replace(/\.jpg$/i, ''))); renderCatalog(); }
+    } catch {}
+  }
   /* ===================== SETTINGS ===================== */
-  function openSettings() { applyTheme(); $('#settingsModal').classList.add('open'); }
+  function openSettings() {
+    applyTheme();
+    const ik = $('#imaginKey'); if (ik) ik.value = LS.get('ms_imagin', '');
+    $('#settingsModal').classList.add('open');
+  }
   const closeSettings = () => $('#settingsModal').classList.remove('open');
   $('#openSettings').addEventListener('click', openSettings);
+  (function () {
+    const ik = $('#imaginKey');
+    if (ik) ik.addEventListener('change', () => {
+      LS.set('ms_imagin', ik.value.trim());
+      toast(T().saved);
+      try { renderCatalog(); } catch {}
+    });
+  })();
   $('#closeSettings').addEventListener('click', closeSettings);
   $('#settingsModal').addEventListener('click', e => { if (e.target.id === 'settingsModal') closeSettings(); });
 
@@ -695,6 +774,7 @@
   applyLang();
   showTab('scan');
   loadRemoteParts();
+  loadCarManifest();
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 })();
 /* Idriss Auto — build ok */

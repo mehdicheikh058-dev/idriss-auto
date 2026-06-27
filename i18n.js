@@ -89,6 +89,9 @@ window.I18N = {
 
     settings: 'Settings',
     settings_appearance: 'Appearance',
+    settings_imagin_label: 'Car image key (imagin.studio)',
+    settings_imagin_ph: 'Your imagin.studio customer key',
+    settings_imagin_note: 'Optional — only if you have an imagin.studio (business) account. By default the app loads free car photos from Wikipedia. Stored on this device only.',
     theme_dark: 'Dark', theme_light: 'Light', theme_system: 'System',
     settings_key_label: 'AI vision API key (OpenAI-compatible)',
     settings_key_ph: 'sk-…  (stored only on this device)',
@@ -215,6 +218,9 @@ window.I18N = {
 
     settings: 'Réglages',
     settings_appearance: 'Apparence',
+    settings_imagin_label: 'Clé images voiture (imagin.studio)',
+    settings_imagin_ph: 'Ta clé client imagin.studio',
+    settings_imagin_note: 'Optionnel — seulement si tu as un compte imagin.studio (pro). Par défaut, l’app charge des photos gratuites depuis Wikipédia. Stockée sur cet appareil.',
     theme_dark: 'Sombre', theme_light: 'Clair', theme_system: 'Système',
     settings_key_label: 'Clé API vision IA (compatible OpenAI)',
     settings_key_ph: 'sk-…  (stockée sur cet appareil)',
@@ -341,6 +347,9 @@ window.I18N = {
 
     settings: 'الإعدادات',
     settings_appearance: 'المظهر',
+    settings_imagin_label: 'مفتاح صور السيارات (imagin.studio)',
+    settings_imagin_ph: 'مفتاح عميل imagin.studio',
+    settings_imagin_note: 'اختياري — فقط إن كان لديك حساب imagin.studio (تجاري). افتراضياً يحمّل التطبيق صوراً مجانية من ويكيبيديا. يُخزَّن على هذا الجهاز.',
     theme_dark: 'داكن', theme_light: 'فاتح', theme_system: 'النظام',
     settings_key_label: 'مفتاح API للرؤية (متوافق OpenAI)',
     settings_key_ph: 'sk-…  (يُخزَّن على الجهاز فقط)',

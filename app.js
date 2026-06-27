@@ -78,8 +78,11 @@
   const catMeta = (c) => window.CATEGORIES[c] || { en: c };
   const catName = (c) => tr(catMeta(c));
 
-  const vehicleRow = (v) =>
-    `<div class="veh"><span>${esc(v.make)} ${esc(v.model)}</span><span class="yr">${esc(v.years || v.year || '')}</span></div>`;
+  const vehicleRow = (v) => {
+    const img = carImage(v.make, v.model);
+    const thumb = img ? `<img class="veh-thumb" src="${esc(img)}" alt="" loading="lazy" onerror="this.classList.add('ph')">` : '<span class="veh-thumb ph"></span>';
+    return `<div class="veh">${thumb}<span class="vname">${esc(v.make)} ${esc(v.model)}</span><span class="yr">${esc(v.years || v.year || '')}</span></div>`;
+  };
 
   function partImgSrc(p) {
     if (p.image) return p.image;

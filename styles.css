@@ -261,12 +261,13 @@ details[open] summary .arr{transform:rotate(90deg)}
 /* Bottom nav */
 nav.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--glass);
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--card-border);
-  display:flex;justify-content:space-around;padding:8px 8px calc(8px + var(--safe-bot))}
-nav.tabbar button{background:none;border:none;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.8px;
-  text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 4px;flex:1;border-radius:12px;
-  transition:color .2s var(--ease),transform .15s var(--ease)}
+  display:flex;justify-content:space-around;padding:6px 2px calc(6px + var(--safe-bot))}
+nav.tabbar button{background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:800;letter-spacing:.2px;
+  text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;
+  padding:11px 2px 16px;flex:1 1 0;min-width:0;border-radius:12px;text-align:center;line-height:1.05;
+  transition:color .2s var(--ease),transform .15s var(--ease);hyphens:auto}
 nav.tabbar button.active{position:relative}
-nav.tabbar button.active::after{content:"";position:absolute;bottom:5px;width:18px;height:3px;border-radius:2px;
+nav.tabbar button.active::after{content:"";position:absolute;bottom:6px;width:16px;height:3px;border-radius:2px;
   background:var(--grad);box-shadow:0 0 10px rgba(255,138,40,.7)}
 nav.tabbar button .ic{font-size:20px;line-height:1;transition:transform .25s var(--ease)}
 nav.tabbar button.active{color:var(--energon)}
@@ -296,13 +297,14 @@ nav.tabbar button:active{transform:scale(.92)}
 
 /* ===== Ask Idriss chat ===== */
 #view-ask{position:relative}
-.chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.chat-id{display:flex;align-items:center;gap:11px;min-width:0}
-.chat-id .av{width:42px;height:42px;border-radius:13px;background:var(--grad);display:grid;place-items:center;
-  font-weight:900;color:var(--accent-ink);box-shadow:0 0 16px rgba(255,138,40,.45);flex:0 0 auto}
-.chat-name{font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:.6px;
+.chat-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.chat-id{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.chat-id .av{width:38px;height:38px;border-radius:12px;background:var(--grad);display:grid;place-items:center;
+  font-weight:900;font-size:14px;color:var(--accent-ink);box-shadow:0 0 16px rgba(255,138,40,.45);flex:0 0 auto}
+.chat-name{font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.4px;line-height:1.12;min-width:0;
   background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.chat-actions{display:flex;gap:8px;flex:0 0 auto}
+.chat-actions{display:flex;gap:6px;flex:0 0 auto}
+.chat-actions .chip{padding:8px 10px;font-size:11px}
 .chip.on{background:var(--grad);border-color:transparent;color:var(--accent-ink)}
 .chat-history{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;margin-bottom:12px;box-shadow:var(--card-glow)}
 .hrow{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;cursor:pointer}
@@ -355,3 +357,15 @@ nav.tabbar button:active{transform:scale(.92)}
 .attx{background:var(--bg2);border:1px solid var(--card-border);color:var(--txt);width:22px;height:22px;border-radius:50%;
   display:grid;place-items:center;font-size:12px;flex:0 0 auto}
 .chat-att-img{display:block;max-width:220px;width:100%;border-radius:12px;margin-bottom:6px}
+
+/* ===== Browse-by-brand grid (Cars) ===== */
+.brandgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.brandtile{display:flex;flex-direction:column;align-items:center;gap:7px;background:var(--card);
+  border:1px solid var(--card-border);border-radius:14px;padding:12px 8px;box-shadow:var(--card-glow);
+  transition:transform .15s var(--ease);color:var(--txt)}
+.brandtile:active{transform:scale(.96)}
+.bmark{position:relative;width:54px;height:54px;border-radius:13px;background:rgba(255,138,40,.08);
+  border:1px solid var(--card-border);display:grid;place-items:center;overflow:hidden}
+.bini{font-weight:900;font-size:16px;color:var(--accent);letter-spacing:.5px}
+.bimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:7px;background:var(--card)}
+.bname{font-size:12px;font-weight:700;text-align:center;line-height:1.2;max-height:2.4em;overflow:hidden}

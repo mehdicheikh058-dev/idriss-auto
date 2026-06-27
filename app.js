@@ -335,13 +335,31 @@
   async function runCarSearch() {
     const t = T(), box = $('#carsList');
     const q = $('#carSearch').value.trim().toLowerCase();
-    if (q.length < 2) { box.innerHTML = `<div class="muted-row">${esc(t.cars_hint)}</div>`; return; }
+    if (q.length < 2) { renderBrandGrid(box); return; }
     const list = await loadCars();
     if (!list) { box.innerHTML = `<div class="muted-row">—</div>`; return; }
     const hits = list.filter(c => (c.make + ' ' + c.model).toLowerCase().includes(q)).slice(0, 60);
     if (!hits.length) { box.innerHTML = `<div class="muted-row">${esc(t.cars_none)}</div>`; return; }
     box.innerHTML = `<div class="kv" style="margin:0 2px 8px">${hits.length} ${esc(t.cars_count)}</div>` +
       hits.map(carResultCard).join('');
+    hydrateCarPix(box);
+  }
+  function brandInitials(m) {
+    const w = (m || '').replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/);
+    return (((w[0] || '')[0] || '') + ((w[1] || '')[0] || (w[0] || '')[1] || '')).toUpperCase();
+  }
+  async function renderBrandGrid(box) {
+    const t = T();
+    const list = await loadCars();
+    if (!list) { box.innerHTML = `<div class="muted-row">${esc(t.cars_hint)}</div>`; return; }
+    const makes = [...new Set(list.map(v => v.make))].sort((a, b) => a.localeCompare(b));
+    box.innerHTML = `<div class="kv" style="margin:2px 2px 10px">${esc(t.cars_browse)}</div>
+      <div class="brandgrid">` + makes.map(m => `<button class="brandtile" data-brand="${esc(m)}">
+        <span class="bmark"><span class="bini">${esc(brandInitials(m))}</span><img class="bimg carpix" data-mk="${esc(m)}" data-md="" data-logo="1" alt="" loading="lazy"></span>
+        <span class="bname">${esc(m)}</span></button>`).join('') + `</div>`;
+    $$('.brandtile', box).forEach(b => b.addEventListener('click', () => {
+      const s = $('#carSearch'); s.value = b.dataset.brand; try { window.scrollTo({ top: 0 }); } catch {} runCarSearch();
+    }));
     hydrateCarPix(box);
   }
   let carTimer;
@@ -631,8 +649,15 @@
     if (mk && md && CAR_IMG_SET.has(mk + '__' + md)) return 'images/cars/' + mk + '__' + md + '.jpg';
     const amk = CAR_MAKE_ALIAS[mk] || mk;
     if (amk && md && CAR_IMG_SET.has(amk + '__' + md)) return 'images/cars/' + amk + '__' + md + '.jpg';
-    if (mk && CAR_IMG_SET.has(mk)) return 'images/cars/' + mk + '.jpg';
-    if (amk && CAR_IMG_SET.has(amk)) return 'images/cars/' + amk + '.jpg';
+    // No brand fallback here on purpose — each model gets its own photo (via Wikipedia),
+    // brand photo is only a last resort inside resolveCarPix().
+    return '';
+  }
+  function brandLocal(make) {
+    const mk = carSlug(make); if (!mk) return '';
+    if (CAR_IMG_SET.has(mk)) return 'images/cars/' + mk + '.jpg';
+    const amk = CAR_MAKE_ALIAS[mk] || mk;
+    if (CAR_IMG_SET.has(amk)) return 'images/cars/' + amk + '.jpg';
     return '';
   }
   // Optional imagin.studio (needs a business account). Set the key in Settings.
@@ -669,13 +694,22 @@
   }
   async function resolveCarPix(img) {
     const mk = img.dataset.mk || '', md = img.dataset.md || '';
+    if (img.dataset.logo) {
+      const lkey = 'logo|' + mk.toLowerCase();
+      const lc = LS.get('ms_carpix2', {});
+      if (Object.prototype.hasOwnProperty.call(lc, lkey)) { applyPix(img, lc[lkey]); return; }
+      const lu = await wikiImage(mk, '');
+      lc[lkey] = lu; try { LS.set('ms_carpix2', lc); } catch {}
+      applyPix(img, lu); return;
+    }
     const cust = imaginCustomer();
     if (cust) { applyPix(img, imaginUrl(mk, md)); return; }
     const key = (mk + '|' + md).toLowerCase();
-    const cache = LS.get('ms_carpix', {});
+    const cache = LS.get('ms_carpix2', {});
     if (Object.prototype.hasOwnProperty.call(cache, key)) { applyPix(img, cache[key]); return; }
-    const url = await wikiImage(mk, md);
-    cache[key] = url; try { LS.set('ms_carpix', cache); } catch {}
+    let url = await wikiImage(mk, md);
+    if (!url) url = brandLocal(mk);
+    cache[key] = url; try { LS.set('ms_carpix2', cache); } catch {}
     applyPix(img, url);
   }
   let carObs = null;

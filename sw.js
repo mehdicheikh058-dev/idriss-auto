@@ -1,6 +1,6 @@
 /* Idriss Auto service worker — offline-first PWA shell.
    Idea & developed by Idriss Romdhani. */
-const CACHE = 'idriss-auto-v16';
+const CACHE = 'idriss-auto-v17';
 const ASSETS = [
   './',
   './index.html',

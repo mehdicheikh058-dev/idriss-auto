@@ -37,8 +37,20 @@ export default async function handler(req, res) {
     const b = body(req);
     const raw = Array.isArray(b.messages) ? b.messages.slice(-24) : [];
     const msgs = raw
-      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
-      .map(m => ({ role: m.role, content: String(m.content).slice(0, 4000) }));
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') &&
+        (typeof m.content === 'string' ? m.content.trim() : Array.isArray(m.content) && m.content.length))
+      .map(m => {
+        if (Array.isArray(m.content)) {
+          const parts = m.content
+            .filter(p => p && (p.type === 'text' || p.type === 'image_url'))
+            .map(p => p.type === 'text'
+              ? { type: 'text', text: String(p.text || '').slice(0, 4000) }
+              : { type: 'image_url', image_url: { url: (p.image_url && p.image_url.url) || '' } })
+            .filter(p => p.type !== 'image_url' || p.image_url.url);
+          return { role: m.role, content: parts };
+        }
+        return { role: m.role, content: String(m.content).slice(0, 4000) };
+      });
     if (!msgs.length) return res.status(400).json({ error: 'No message' });
 
     const model = process.env.CHAT_MODEL || 'gpt-4o-mini';

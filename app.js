@@ -378,9 +378,93 @@
     $('#chatHistory').classList.add('hidden');
     renderMessages(); const i = $('#chatInput'); if (i) i.focus();
   }
+  function renderContent(content) {
+    if (Array.isArray(content)) {
+      return content.map(p => p && p.type === 'image_url'
+        ? `<img class="chat-att-img" src="${esc((p.image_url && p.image_url.url) || '')}" alt="">`
+        : `<span>${esc((p && p.text) || '')}</span>`).join('');
+    }
+    return esc(content);
+  }
   function bubble(m) {
     const av = m.role === 'assistant' ? '<span class="bav">IR</span>' : '';
-    return `<div class="bubble ${m.role}">${av}<div class="btext">${esc(m.content)}</div></div>`;
+    return `<div class="bubble ${m.role}">${av}<div class="btext">${renderContent(m.content)}</div></div>`;
+  }
+  /* ---- attachments ---- */
+  let pendingImg = null, pendingFile = null;
+  function renderAtt() {
+    const box = $('#chatAtt'); if (!box) return;
+    if (!pendingImg && !pendingFile) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.classList.remove('hidden');
+    box.innerHTML = pendingImg
+      ? `<div class="attchip"><img src="${esc(pendingImg.dataUrl)}" alt=""><button class="attx" id="attClear">✕</button></div>`
+      : `<div class="attchip file"><span>${esc(pendingFile.name)}</span><button class="attx" id="attClear">✕</button></div>`;
+    const x = $('#attClear'); if (x) x.addEventListener('click', () => { pendingImg = null; pendingFile = null; renderAtt(); });
+  }
+  function downscaleImage(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const max = 1024; let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > max || h > max) { const s = Math.min(max / w, max / h); w = Math.round(w * s); h = Math.round(h * s); }
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.82));
+          } catch { resolve(reader.result); }
+        };
+        img.onerror = () => resolve(reader.result);
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  async function handleChatFile(file) {
+    if (!file) return;
+    if (file.type && file.type.startsWith('image/')) {
+      pendingImg = { dataUrl: await downscaleImage(file) }; pendingFile = null; renderAtt();
+    } else if ((file.type && file.type.startsWith('text/')) || /\.(txt|csv|log|json|md)$/i.test(file.name)) {
+      if (file.size > 300 * 1024) { toast(T().ask_file_err); return; }
+      const text = await (file.text ? file.text() : Promise.resolve('')).catch(() => '');
+      pendingFile = { name: file.name, text: String(text).slice(0, 8000) }; pendingImg = null; renderAtt();
+    } else {
+      toast(T().ask_file_err);
+    }
+  }
+  /* ---- voice ---- */
+  let mediaRec = null, recChunks = [], recStream = null, recording = false;
+  function blobToDataUrl(blob) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); }
+  async function toggleMic() {
+    const mic = $('#chatMic');
+    if (recording) { try { mediaRec.stop(); } catch {} return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) { toast(T().ask_voice_err); return; }
+    try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast(T().ask_voice_err); return; }
+    recChunks = [];
+    let mime = 'audio/webm';
+    try { if (!MediaRecorder.isTypeSupported(mime)) mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''; } catch { mime = ''; }
+    try { mediaRec = mime ? new MediaRecorder(recStream, { mimeType: mime }) : new MediaRecorder(recStream); }
+    catch { mediaRec = new MediaRecorder(recStream); }
+    mediaRec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+    mediaRec.onstop = async () => {
+      recording = false; mic.classList.remove('rec');
+      if (recStream) recStream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recChunks, { type: (mediaRec && mediaRec.mimeType) || 'audio/webm' });
+      if (!blob.size) return;
+      mic.classList.add('busy');
+      try {
+        const dataUrl = await blobToDataUrl(blob);
+        const res = await fetch('./api/transcribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio: dataUrl, mime: blob.type, lang }) });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && data.text) { const i = $('#chatInput'); i.value = (i.value ? i.value + ' ' : '') + data.text; autoGrow(); i.focus(); }
+        else toast((data && data.error) || T().ask_voice_err);
+      } catch { toast(T().ask_voice_err); }
+      finally { mic.classList.remove('busy'); }
+    };
+    mediaRec.start();
+    recording = true; mic.classList.add('rec'); toast(T().ask_rec);
   }
   function renderMessages() {
     const t = T(), box = $('#chatMessages'); if (!box) return;
@@ -422,16 +506,39 @@
     const clr = $('#chatClearAll');
     if (clr) clr.addEventListener('click', () => { saveChats([]); activeChatId = null; renderHistory(); renderMessages(); });
   }
+  function outboundMsgs(msgs) {
+    // Keep payload small: full image only on the LAST message; older images -> text note.
+    const slice = msgs.slice(-16);
+    return slice.map((m, i) => {
+      if (Array.isArray(m.content) && i < slice.length - 1) {
+        const txt = m.content.filter(p => p.type === 'text').map(p => p.text).join(' ');
+        return { role: m.role, content: (txt + ' [image]').trim() };
+      }
+      return m;
+    });
+  }
   async function sendMessage() {
     if (chatBusy) return;
-    const input = $('#chatInput'); const text = (input.value || '').trim(); if (!text) return;
+    const input = $('#chatInput'); const text = (input.value || '').trim();
+    if (!text && !pendingImg && !pendingFile) return;
     const c = activeChat();
-    c.msgs.push({ role: 'user', content: text });
-    if (!c.title) c.title = text.slice(0, 40);
+    let content;
+    if (pendingImg) {
+      let t2 = text || '';
+      if (pendingFile) t2 += (t2 ? '\n\n' : '') + '[File: ' + pendingFile.name + ']\n' + pendingFile.text;
+      content = [{ type: 'text', text: t2 || 'Please look at this image.' }, { type: 'image_url', image_url: { url: pendingImg.dataUrl } }];
+    } else if (pendingFile) {
+      content = (text ? text + '\n\n' : '') + '[File: ' + pendingFile.name + ']\n' + pendingFile.text;
+    } else {
+      content = text;
+    }
+    c.msgs.push({ role: 'user', content });
+    if (!c.title) c.title = (text || (pendingImg ? 'Image' : pendingFile ? pendingFile.name : '')).slice(0, 40);
     persistChat(c);
-    input.value = ''; autoGrow(); chatBusy = true; renderMessages();
+    input.value = ''; autoGrow(); pendingImg = null; pendingFile = null; renderAtt();
+    chatBusy = true; renderMessages();
     try {
-      const res = await fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: c.msgs.slice(-20) }) });
+      const res = await fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: outboundMsgs(c.msgs) }) });
       const txt = await res.text(); let data; try { data = JSON.parse(txt); } catch { data = null; }
       if (!res.ok || !data || data.error || !data.reply) throw new Error((data && (data.error || data.detail)) || ('HTTP ' + res.status));
       c.msgs.push({ role: 'assistant', content: data.reply });
@@ -451,6 +558,10 @@
     }
     if (nb) nb.addEventListener('click', newChat);
     if (hb) hb.addEventListener('click', () => { const h = $('#chatHistory'); if (h.classList.contains('hidden')) renderHistory(); h.classList.toggle('hidden'); });
+    const attach = $('#chatAttach'), fileEl = $('#chatFile'), mic = $('#chatMic');
+    if (attach && fileEl) attach.addEventListener('click', () => fileEl.click());
+    if (fileEl) fileEl.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; handleChatFile(f); fileEl.value = ''; });
+    if (mic) mic.addEventListener('click', toggleMic);
   })();
 
   /* ===================== LEARN HUB ===================== */

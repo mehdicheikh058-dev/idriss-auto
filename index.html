@@ -97,8 +97,14 @@
     <div id="chatHistory" class="chat-history hidden"></div>
     <div id="chatMessages" class="chat-msgs"></div>
     <div class="chat-input">
-      <textarea id="chatInput" rows="1" data-ph="ask_ph"></textarea>
-      <button id="chatSend" class="chat-send" aria-label="send">→</button>
+      <div class="chat-att hidden" id="chatAtt"></div>
+      <div class="chat-row">
+        <input type="file" id="chatFile" accept="image/*,.txt,.csv,.log,.json,.md" class="hidden" />
+        <button class="chat-mini" id="chatAttach" aria-label="attach"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.49"/></svg></button>
+        <button class="chat-mini" id="chatMic" aria-label="voice"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><path d="M12 18v3"/></svg></button>
+        <textarea id="chatInput" rows="1" data-ph="ask_ph"></textarea>
+        <button id="chatSend" class="chat-send" aria-label="send">→</button>
+      </div>
     </div>
   </section>
 

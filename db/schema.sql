@@ -18,8 +18,11 @@ create table if not exists public.parts (
   category    text not null,
   name        jsonb not null,         -- {"en":"","fr":"","ar":""}
   fits        jsonb not null default '[]'::jsonb, -- [{"make":"","model":"","years":""}]
+  image       text,                   -- optional thumbnail URL (falls back to a category icon)
   created_at  timestamptz not null default now()
 );
+-- If the table already existed before this column was added, run this once:
+alter table public.parts add column if not exists image text;
 
 -- ---------- USER-SUBMITTED PARTS / SUGGESTIONS ----------
 create table if not exists public.submissions (
@@ -58,6 +61,4 @@ alter table public.feedback    enable row level security;
 --  Your serverless functions use the service-role key which bypasses RLS.)
 
 -- ---------- Helpful indexes ----------
-create index if not exists parts_category_idx     on public.parts (category);
-create index if not exists submissions_status_idx on public.submissions (status);
-create index if not exists scan_logs_created_idx   on public.scan_logs (created_at desc);
+create index if

@@ -29,7 +29,8 @@ export default async function handler(req, res) {
     const rows = await r.json();
     const parts = (rows || []).map(x => ({
       id: x.id, partNo: x.part_no, barcode: x.barcode || undefined,
-      category: x.category, name: x.name, fits: x.fits || []
+      category: x.category, name: x.name, fits: x.fits || [],
+      image: x.image || undefined
     }));
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60');
     return res.status(200).json(parts);

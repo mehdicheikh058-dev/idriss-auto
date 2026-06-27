@@ -81,17 +81,33 @@
   const vehicleRow = (v) =>
     `<div class="veh"><span>${esc(v.make)} ${esc(v.model)}</span><span class="yr">${esc(v.years || v.year || '')}</span></div>`;
 
+  function partImgSrc(p) {
+    if (p.image) return p.image;
+    const cats = window.CATEGORIES || {};
+    if (cats[p.category]) return 'images/parts/' + p.category + '.svg';
+    return '';
+  }
+  function partThumb(p) {
+    const src = partImgSrc(p);
+    if (!src) return '';
+    return `<img class="pthumb" src="${esc(src)}" alt="" loading="lazy" onerror="this.classList.add('miss')">`;
+  }
   function partCard(p, opts = {}) {
     const t = T();
     const fits = (p.fits || []).map(vehicleRow).join('');
     const saveBtn = opts.save
       ? `<button class="tag btnlike cat" style="align-self:flex-start;margin-top:4px" data-save="${esc(p.id)}">+ ${esc(t.scan_save_garage)}</button>` : '';
     return `<div class="card part">
-      <div class="top">
-        <span class="name">${esc(partName(p))}</span>
-        <span class="tag cat">${esc(catName(p.category))}</span>
+      <div class="phead">
+        ${partThumb(p)}
+        <div class="pinfo">
+          <div class="top">
+            <span class="name">${esc(partName(p))}</span>
+            <span class="tag cat">${esc(catName(p.category))}</span>
+          </div>
+          <div class="kv">${esc(t.cat_partno)}: <b>${esc(p.partNo || '—')}</b></div>
+        </div>
       </div>
-      <div class="kv">${esc(t.cat_partno)}: <b>${esc(p.partNo || '—')}</b></div>
       <div class="kv">${esc(t.scan_fits)}:</div>
       <div class="fits">${fits}</div>
       ${saveBtn}
@@ -349,6 +365,22 @@
     return window.PARTS.filter(p => (p.fits || []).some(f =>
       f.make.toLowerCase() === mk && (f.model.toLowerCase().includes(md) || md.includes(f.model.toLowerCase()))));
   }
+  // Real car photos (from the bundled Cars Dataset) — matched by model, then make.
+  const CAR_BY_MODEL = { innova:'toyota-innova', creta:'hyundai-creta', scorpio:'mahindra-scorpio', safari:'tata-safari', swift:'swift', mustang:'ford-mustang' };
+  const CAR_BY_MAKE = {
+    audi:'audi', bentley:'bentley', mercedes:'benz', 'mercedes-benz':'benz', benz:'benz',
+    bmw:'bmw', cadillac:'cadillac', dodge:'dodge', ferrari:'ferrari', ford:'ford',
+    kia:'kia', lamborghini:'lamborghini', lexus:'lexus', maserati:'maserati', porsche:'porsche',
+    'rolls royce':'rolls-royce', 'rolls-royce':'rolls-royce', rollsroyce:'rolls-royce',
+    tesla:'tesla', toyota:'toyota', 'alfa romeo':'alfa-romeo', 'alfa-romeo':'alfa-romeo', alfa:'alfa-romeo',
+    hyundai:'hyundai', mahindra:'mahindra-scorpio', tata:'tata-safari', suzuki:'swift', maruti:'swift'
+  };
+  function carImage(make, model) {
+    const md = (model || '').toLowerCase(), mk = (make || '').toLowerCase();
+    for (const k in CAR_BY_MODEL) if (md.includes(k)) return 'images/cars/' + CAR_BY_MODEL[k] + '.jpg';
+    for (const k in CAR_BY_MAKE) if (mk.includes(k)) return 'images/cars/' + CAR_BY_MAKE[k] + '.jpg';
+    return '';
+  }
   function renderGarage() {
     const t = T(), box = $('#garageList'), vehicles = getVehicles();
     let html = '';
@@ -357,7 +389,9 @@
       const mlist = matches.length
         ? matches.map(p => `<div class="veh"><span>${esc(partName(p))}</span><span class="yr">${esc(p.partNo)}</span></div>`).join('')
         : `<div class="kv">—</div>`;
-      return `<div class="card part"><div class="top">
+      const photo = carImage(v.make, v.model);
+      const photoHtml = photo ? `<img class="car-photo" src="${esc(photo)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+      return `<div class="card part">${photoHtml}<div class="top">
         <span class="name">${esc(v.make)} ${esc(v.model)} ${esc(v.year || '')}</span>
         <button class="tag btnlike" data-del="${esc(v.id)}">✕ ${esc(t.garage_remove)}</button></div>
         <div class="kv">${esc(t.garage_matching)}:</div><div class="fits">${mlist}</div></div>`;
@@ -411,6 +445,34 @@
       else { toast(T().send_fail); }
     } catch { toast(T().send_fail); } finally { sgBtn.disabled = false; }
   });
+
+  /* ===================== vehicle autocomplete (Garage) ===================== */
+  let VEHICLES = null;
+  async function loadVehicles() {
+    if (VEHICLES) return VEHICLES;
+    try {
+      const r = await fetch('data/vehicles.json'); if (!r.ok) return null;
+      VEHICLES = await r.json();
+      const ml = $('#makeList');
+      if (ml && VEHICLES.makes) ml.innerHTML = VEHICLES.makes.map(m => `<option value="${esc(m)}"></option>`).join('');
+    } catch {}
+    return VEHICLES;
+  }
+  function fillModels(make) {
+    const dl = $('#modelList'); if (!dl || !VEHICLES) return;
+    const key = (VEHICLES.makes || []).find(m => m.toLowerCase() === (make || '').toLowerCase());
+    const models = (key && VEHICLES.byMake[key]) || [];
+    dl.innerHTML = models.slice(0, 1500).map(m => `<option value="${esc(m)}"></option>`).join('');
+  }
+  (function initVehicleAC() {
+    const gMakeEl = $('#gMake'), gModelEl = $('#gModel');
+    if (gMakeEl) {
+      gMakeEl.addEventListener('focus', loadVehicles, { once: true });
+      gMakeEl.addEventListener('input', () => { if (VEHICLES) fillModels(gMakeEl.value); });
+      gMakeEl.addEventListener('change', () => fillModels(gMakeEl.value));
+    }
+    if (gModelEl) gModelEl.addEventListener('focus', async () => { await loadVehicles(); fillModels(($('#gMake') || {}).value || ''); }, { once: true });
+  })();
 
   /* ===================== boot ===================== */
   applyTheme();

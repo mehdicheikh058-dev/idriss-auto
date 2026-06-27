@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#04070e" id="themeColorMeta" />
+<meta name="description" content="Scan a car part and find which vehicles need it. Idea & developed by Idriss Romdhani." />
+<title>Idriss Auto — Scan parts & mechanics hub</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Idriss Auto" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="tab-scan">
+<div id="heroWrap" aria-hidden="true">
+  <video id="heroVideo" autoplay muted loop playsinline preload="auto" poster="images/hero-poster.jpg">
+    <source src="images/hero.mp4" type="video/mp4" />
+  </video>
+  <div class="veil"></div>
+  <div class="scan"></div>
+</div>
+<header>
+  <div class="brand">
+    <img class="logo" src="icons/icon-192.png" alt="Idriss Auto" onerror="this.style.display='none'" />
+    <div>
+      <h1 id="appName">Idriss Auto</h1>
+      <small id="tagline">Scan · Identify · Fix</small>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">◐</button>
+  <select id="langSelect" class="lang-select" aria-label="Language">
+    <option value="en">EN</option><option value="fr">FR</option><option value="ar">AR</option>
+  </select>
+  <button class="icon-btn" id="openSettings" aria-label="Settings">≡</button>
+</header>
+
+<main>
+  <!-- SCAN -->
+  <section class="view active" id="view-scan">
+    <h2 data-i="scan_title"></h2>
+    <p class="sub" data-i="scan_sub"></p>
+    <div class="card">
+      <div class="preview" id="preview">
+        <div class="ph"><span data-i="scan_take"></span></div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden" />
+      <div class="row">
+        <button class="btn secondary" id="takePhoto" data-i="scan_take"></button>
+        <button class="btn" id="analyzeBtn" data-i="scan_analyze" disabled></button>
+      </div>
+      <div id="scanStatus" class="kv" style="margin-top:10px"></div>
+    </div>
+
+    <div class="or"><span data-i="scan_or"></span></div>
+
+    <div class="card">
+      <div class="field"><input id="lookupInput" type="search" data-ph="scan_lookup_ph" /></div>
+      <div class="row">
+        <button class="btn" id="lookupBtn" data-i="scan_lookup_btn"></button>
+        <button class="btn ghost" id="barcodeBtn"><span data-i="scan_barcode"></span></button>
+      </div>
+    </div>
+
+    <div id="scanResults" class="list"></div>
+  </section>
+
+  <!-- CATALOG -->
+  <section class="view" id="view-catalog">
+    <h2 data-i="cat_title"></h2>
+    <div class="field"><input id="catSearch" type="search" data-ph="cat_search" /></div>
+    <div class="chips" id="catChips"></div>
+    <div id="catList" class="list"></div>
+  </section>
+
+  <!-- LEARN -->
+  <section class="view" id="view-learn">
+    <div id="learnHub">
+      <h2 data-i="learn_title"></h2>
+      <p class="sub" data-i="learn_sub"></p>
+      <div class="hub">
+        <button class="tile" data-learn="guides"><span class="glow"></span><h3 data-i="learn_guides"></h3><p data-i="learn_guides_d"></p></button>
+        <button class="tile" data-learn="lights"><span class="glow"></span><h3 data-i="learn_lights"></h3><p data-i="learn_lights_d"></p></button>
+        <button class="tile" data-learn="obd"><span class="glow"></span><h3 data-i="learn_obd"></h3><p data-i="learn_obd_d"></p></button>
+        <button class="tile" data-learn="fluids"><span class="glow"></span><h3 data-i="learn_fluids"></h3><p data-i="learn_fluids_d"></p></button>
+        <button class="tile full" data-learn="tools"><span class="glow"></span><h3 data-i="learn_tools"></h3><p data-i="learn_tools_d"></p></button>
+      </div>
+    </div>
+    <div id="learnDetail" class="hidden">
+      <button class="backlink" id="learnBack">‹ <span data-i="learn_back"></span></button>
+      <h2 id="learnDetailTitle"></h2>
+      <div id="learnDetailBody"></div>
+    </div>
+  </section>
+
+  <!-- GARAGE -->
+  <section class="view" id="view-garage">
+    <h2 data-i="garage_title"></h2>
+    <p class="sub" data-i="garage_sub"></p>
+    <div class="card">
+      <div class="field"><input id="gMake" data-ph="garage_make" /></div>
+      <div class="row">
+        <input id="gModel" data-ph="garage_model" />
+        <input id="gYear" type="number" inputmode="numeric" data-ph="garage_year" />
+      </div>
+      <button class="btn" id="gSave" style="margin-top:12px" data-i="garage_save"></button>
+    </div>
+    <div id="garageList" class="list"></div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="view" id="view-about">
+    <h2 data-i="about_title"></h2>
+    <div class="card">
+      <div class="credit">
+        <div class="av">IR</div>
+        <div>
+          <div class="role" data-i="about_credit_role"></div>
+          <div class="who">Idriss Romdhani</div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><p class="sub" data-i="about_body" style="margin:0"></p></div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px;font-size:16px" data-i="contribute_title"></h3>
+      <p class="kv" data-i="contribute_sub" style="margin:0 0 12px"></p>
+      <div class="field"><textarea id="fbMsg" rows="3" data-ph="fb_ph"></textarea></div>
+      <div class="field"><input id="fbContact" data-ph="fb_contact_ph" /></div>
+      <button class="btn" id="fbSend" data-i="fb_send"></button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px;font-size:16px" data-i="suggest_title"></h3>
+      <div class="field"><input id="sgName" data-ph="sg_name_ph" /></div>
+      <div class="row" style="margin-bottom:12px">
+        <input id="sgNumber" data-ph="sg_number_ph" />
+        <input id="sgVehicles" data-ph="sg_cars_ph" />
+      </div>
+      <button class="btn" id="sgSend" data-i="sg_send"></button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px;font-size:16px" data-i="about_feat"></h3>
+      <p class="kv" data-i="about_feat_list" style="line-height:1.7"></p>
+    </div>
+    <div class="card">
+      <h3 data-i="about_install" style="margin:0 0 8px;font-size:16px"></h3>
+      <p class="sub" data-i="about_install_body" style="margin:0 0 8px"></p>
+      <p class="kv" data-i="about_offline"></p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button data-tab="scan" class="active"><span data-i="nav_scan"></span></button>
+  <button data-tab="catalog"><span data-i="nav_catalog"></span></button>
+  <button data-tab="learn"><span data-i="nav_learn"></span></button>
+  <button data-tab="garage"><span data-i="nav_garage"></span></button>
+  <button data-tab="about"><span data-i="nav_about"></span></button>
+</nav>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3><span data-i="settings"></span><button class="icon-btn" id="closeSettings">✕</button></h3>
+
+    <div class="field">
+      <label data-i="settings_appearance"></label>
+      <div class="seg" id="themeSeg">
+        <button data-theme-opt="light" data-i="theme_light"></button>
+        <button data-theme-opt="dark" data-i="theme_dark"></button>
+        <button data-theme-opt="system" data-i="theme_system"></button>
+      </div>
+    </div>
+
+    <!-- AI photo recognition runs on a secure server-side proxy; no key is ever entered or stored in the app. -->
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="i18n.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -273,7 +273,7 @@
   }
 
   /* ===================== CATALOG ===================== */
-  let catFilter = 'all';
+  let catFilter = 'all', catLimit = 24;
   function renderCatalog() {
     const t = T(), chips = $('#catChips');
     const cats = ['all', ...Object.keys(window.CATEGORIES)];
@@ -281,7 +281,7 @@
       const label = c === 'all' ? t.cat_all : catName(c);
       return `<button class="chip ${c === catFilter ? 'active' : ''}" data-cat="${c}">${esc(label)}</button>`;
     }).join('');
-    $$('[data-cat]', chips).forEach(b => b.addEventListener('click', () => { catFilter = b.dataset.cat; renderCatalog(); }));
+    $$('[data-cat]', chips).forEach(b => b.addEventListener('click', () => { catFilter = b.dataset.cat; catLimit = 24; renderCatalog(); }));
     const q = $('#catSearch').value.trim().toLowerCase();
     let list = window.PARTS.slice();
     if (catFilter !== 'all') list = list.filter(p => p.category === catFilter);
@@ -294,12 +294,17 @@
         <div class="ov">${esc(catName(catFilter))}</div></div>`;
     }
     const box = $('#catList');
+    const shown = list.slice(0, catLimit);
+    const more = list.length - shown.length;
     box.innerHTML = hero + (list.length
-      ? `<div class="kv" style="margin:0 2px 8px">${list.length} ${esc(t.cat_count)}</div>` + list.map(p => partCard(p, { save: true })).join('')
+      ? `<div class="kv" style="margin:0 2px 8px">${list.length} ${esc(t.cat_count)}</div>` +
+        shown.map(p => partCard(p, { save: true })).join('') +
+        (more > 0 ? `<button class="btn ghost" id="catMore" style="margin-top:6px">${esc(t.cat_more)} (${more})</button>` : '')
       : `<div class="muted-row">—</div>`);
     bindSave(box);
+    const mb = $('#catMore'); if (mb) mb.addEventListener('click', () => { catLimit += 24; renderCatalog(); });
   }
-  $('#catSearch').addEventListener('input', renderCatalog);
+  $('#catSearch').addEventListener('input', () => { catLimit = 24; renderCatalog(); });
 
   /* ===================== CARS FINDER ===================== */
   let CARS = null;
@@ -338,7 +343,7 @@
     if (q.length < 2) { renderBrandGrid(box); return; }
     const list = await loadCars();
     if (!list) { box.innerHTML = `<div class="muted-row">—</div>`; return; }
-    const hits = list.filter(c => (c.make + ' ' + c.model).toLowerCase().includes(q)).slice(0, 60);
+    const hits = list.filter(c => (c.make + ' ' + c.model).toLowerCase().includes(q)).slice(0, 30);
     if (!hits.length) { box.innerHTML = `<div class="muted-row">${esc(t.cars_none)}</div>`; return; }
     box.innerHTML = `<div class="kv" style="margin:0 2px 8px">${hits.length} ${esc(t.cars_count)}</div>` +
       hits.map(carResultCard).join('');

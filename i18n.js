@@ -31,6 +31,7 @@ window.I18N = {
     cat_search: 'Search parts, numbers, cars…',
     cat_all: 'All',
     cat_count: 'parts',
+    cat_more: 'Show more',
     cat_partno: 'Part No.',
     cat_category: 'Category',
 
@@ -163,6 +164,7 @@ window.I18N = {
     cat_search: 'Chercher pièces, références, voitures…',
     cat_all: 'Toutes',
     cat_count: 'pièces',
+    cat_more: 'Voir plus',
     cat_partno: 'Réf.',
     cat_category: 'Catégorie',
 
@@ -295,6 +297,7 @@ window.I18N = {
     cat_search: 'ابحث عن قطع، أرقام، سيارات…',
     cat_all: 'الكل',
     cat_count: 'قطعة',
+    cat_more: 'عرض المزيد',
     cat_partno: 'الرقم',
     cat_category: 'الفئة',
 

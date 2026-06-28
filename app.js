@@ -697,24 +697,31 @@
     if (url) { img.classList.remove('ph'); img.onerror = function () { if (img.classList.contains('veh-thumb')) { img.classList.add('ph'); img.removeAttribute('src'); } else { img.remove(); } }; img.src = url; return; }
     if (img.classList.contains('veh-thumb')) img.classList.add('ph'); else img.remove();
   }
+  function loadOk(url) { return new Promise(res => { const im = new Image(); im.onload = () => res(true); im.onerror = () => res(false); im.src = url; }); }
+  async function brandLogo(make) {
+    const slug = carSlug(make); if (!slug) return '';
+    const logoUrl = 'https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/optimized/' + slug + '.png';
+    if (await loadOk(logoUrl)) return logoUrl;
+    return await wikiImage(make, '');   // fallback to Wikipedia, then '' -> initials
+  }
   async function resolveCarPix(img) {
     const mk = img.dataset.mk || '', md = img.dataset.md || '';
     if (img.dataset.logo) {
-      const lkey = 'logo|' + mk.toLowerCase();
-      const lc = LS.get('ms_carpix2', {});
+      const lkey = 'logo|' + carSlug(mk);
+      const lc = LS.get('ms_carpix3', {});
       if (Object.prototype.hasOwnProperty.call(lc, lkey)) { applyPix(img, lc[lkey]); return; }
-      const lu = await wikiImage(mk, '');
-      lc[lkey] = lu; try { LS.set('ms_carpix2', lc); } catch {}
+      const lu = await brandLogo(mk);
+      lc[lkey] = lu; try { LS.set('ms_carpix3', lc); } catch {}
       applyPix(img, lu); return;
     }
     const cust = imaginCustomer();
     if (cust) { applyPix(img, imaginUrl(mk, md)); return; }
     const key = (mk + '|' + md).toLowerCase();
-    const cache = LS.get('ms_carpix2', {});
+    const cache = LS.get('ms_carpix3', {});
     if (Object.prototype.hasOwnProperty.call(cache, key)) { applyPix(img, cache[key]); return; }
     let url = await wikiImage(mk, md);
     if (!url) url = brandLocal(mk);
-    cache[key] = url; try { LS.set('ms_carpix2', cache); } catch {}
+    cache[key] = url; try { LS.set('ms_carpix3', cache); } catch {}
     applyPix(img, url);
   }
   let carObs = null;
